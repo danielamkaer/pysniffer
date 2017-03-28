@@ -3,10 +3,9 @@ import logging
 logger = logging.getLogger(__name__)
 import re
 
-class Http:
+class Ssh:
 
-    REGEX_cli = re.compile('^(GET|POST|DELETE|PUT|PATCH|HEAD) (.+) HTTP/(\d\.\d)')
-    REGEX_srv = re.compile('^HTTP\/(\d\.\d) (\d{3}) (.+?)')
+    REGEX = re.compile('^SSH-(.+?)$')
 
     def register(self, app):
         self.app = app
@@ -21,14 +20,17 @@ class Http:
         conn.onClientSent -= self.OnClientSent
         payload = bytes(packet['Raw'].load)
 
-        if Http.REGEX_cli.match(payload.decode()):
-            logger.info("Found HTTP client")
+        m = Ssh.REGEX.match(payload.decode())
+        if m:
+            logger.info(f"Found SSH client : {m.group(1)}")
             conn.onServerSent += self.OnServerSent
 
     def OnServerSent(self, conn, packet):
         conn.onServerSent -= self.OnServerSent
         payload = bytes(packet['Raw'].load)
 
-        if Http.REGEX_srv.match(payload.decode()):
-            logger.info("Found HTTP server")
+        m = Ssh.REGEX.match(payload.decode())
+        if m:
+            logger.info(f"Found SSH server : {m.group(1)}")
+
 

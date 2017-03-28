@@ -26,7 +26,7 @@ class Container:
         self.instances[key] = item
 
 class Application(Container):
-    register = [pysniffer.l2.Ethernet, pysniffer.l3.IPv4, pysniffer.l3.IPv6, pysniffer.l4.TCP, pysniffer.l7.Http]
+    register = [pysniffer.l2.Ethernet, pysniffer.l3.IPv4, pysniffer.l3.IPv6, pysniffer.l4.TCP, pysniffer.l7.Http, pysniffer.l7.Ssh]
     def __init__(self, argv):
         super().__init__()
         logging.basicConfig(level=logging.DEBUG)

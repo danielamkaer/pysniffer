@@ -33,6 +33,10 @@ class Event:
         return self
 
     def unhandle(self, handler):
+        for h in self.handlers:
+            if h.handler == handler:
+                handler = h
+                break
         try:
             self.handlers.remove(handler)
         except:
@@ -40,7 +44,7 @@ class Event:
         return self
 
     def fire(self, *args, **kargs):
-        for handler in self.handlers:
+        for handler in self.handlers.copy():
             handler(*args, **kargs)
 
     def getHandlerCount(self):

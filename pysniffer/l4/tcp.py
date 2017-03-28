@@ -6,18 +6,82 @@ from scapy.layers.inet import IP_PROTOS
 
 logger = logging.getLogger(__name__)
 
+class ConnectionClosed(Exception):
+    pass
+
+class InvalidConnection(Exception):
+    pass
+
 class Connection:
-    STATE_SYN_RECEIVED = 0
-    STATE_SYNACK_RECEIVED = 1
-    STATE_ACK_RECEIVED = 2 
+    STATE_SYN_RECEIVED = 'STATE_SYN_RECEIVED'
+    STATE_SYNACK_RECEIVED = 'STATE_SYNACK_RECEIVED'
+    STATE_ACK_RECEIVED = 'STATE_ACK_RECEIVED' 
+    STATUS_ESTABLISHED = 'STATUS_ESTABLISHED'
+
     def __init__(self, src, dst, sport, dport, seq):
         self.src = src
         self.dst = dst
         self.sport = sport
         self.dport = dport
-        self.seq = seq
+        self.sseq = seq
+        self.sack = 0
+        self.dseq = 0
+        self.dack = 0
         self.state = Connection.STATE_SYN_RECEIVED
 
+        self.onClientSent = pysniffer.core.Event()
+        self.onServerSent = pysniffer.core.Event()
+
+    def pair(self):
+        return (self.src, self.dst, self.sport, self.dport)
+
+    @staticmethod
+    def FromPacket(packet):
+        if not 'TCP' in packet:
+            return None
+        
+        if packet['TCP'].flags != TCP.SYN:
+            return None
+
+        return Connection(*TCP.TcpPair(packet), packet['TCP'].seq)
+
+    def HandleFrame(self, packet):
+        if self.state == Connection.STATE_SYN_RECEIVED:
+            if packet['TCP'].flags == TCP.SYN|TCP.ACK:
+                if packet['TCP'].ack == self.sseq+1:
+                    self.state = Connection.STATE_SYNACK_RECEIVED
+                    self.dseq = packet['TCP'].seq
+                    self.dack = packet['TCP'].ack
+                else:
+                    logger.warning("3wh: SYN+ACK received with wrong sequence number.")
+                    raise InvalidConnection()
+            else:
+                logger.warning("3wh: Connection is in SYN received state, but non SYN+ACK received.")
+                raise InvalidConnection()
+
+        elif self.state == Connection.STATE_SYNACK_RECEIVED:
+            if packet['TCP'].flags == TCP.ACK:
+                if packet['TCP'].ack == self.dseq+1:
+                    self.state = Connection.STATE_ACK_RECEIVED
+                    self.sack = packet['TCP'].ack
+                    logger.info(f"3wh: Connection established between {self.src}:{self.sport} -> {self.dst}:{self.dport}")
+                    return Connection.STATUS_ESTABLISHED
+                else:
+                    logger.warning("3wh: ACK received with wrong sequence number.")
+                    raise InvalidConnection()
+            else:
+                logger.warning("3wh: Connection is in SYN+ACK received state, but non ACK received.")
+                raise InvalidConnection()
+        elif self.state == Connection.STATE_ACK_RECEIVED:
+            if packet['TCP'].flags & TCP.FIN:
+                logger.info(f"3wh: Connection closed between {self.src}:{self.sport} -> {self.dst}:{self.dport}")
+                raise ConnectionClosed()
+            elif 'Raw' in packet:
+                if TCP.TcpPair(packet) == self.pair():
+                    self.onClientSent(self, packet)
+                else:
+                    self.onServerSent(self, packet)
+                
 class TCP:
     FIN = 0x01
     SYN = 0x02
@@ -47,7 +111,7 @@ class TCP:
 
     @staticmethod
     def TcpPairReversed(packet):
-        return TCP.ReversePair(TCP.GetPair(packet))
+        return TCP.ReversePair(TCP.TcpPair(packet))
 
     def register(self, app):
         self.app = app
@@ -59,37 +123,24 @@ class TCP:
     def OnFrameReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.summary()}')
         pair = TCP.TcpPair(packet)
+        revpair = TCP.TcpPairReversed(packet)
 
-        if packet['TCP'].flags == TCP.SYN:
-            logger.debug('Received SYN')
-
+        if pair in self.conntrack or revpair in self.conntrack:
             if pair not in self.conntrack:
-                self.conntrack[pair] = Connection(*pair, packet['TCP'].seq)
-            else:
-                logger.warning(f'Already tracking {pair}')
+                pair = revpair
+                
+            status = None
+            try:
+                status = self.conntrack[pair].HandleFrame(packet)
+            except InvalidConnection:
+                del self.conntrack[pair]
+            except ConnectionClosed:
+                del self.conntrack[pair]
 
+            if status == Connection.STATUS_ESTABLISHED:
+                self.onConnectionEstablished(self.conntrack[pair])
 
-        if packet['TCP'].flags == TCP.SYN|TCP.ACK:
-            logger.debug('Received SYN+ACK')
-
-            revpair = TCP.ReversePair(pair)
-            if revpair in self.conntrack:
-                conn = self.conntrack[revpair]
-                if conn.state == Connection.STATE_SYN_RECEIVED:
-                    if packet['TCP'].ack == conn.seq+1:
-                        conn.state = Connection.STATE_SYNACK_RECEIVED
-            else:
-                logger.warning(f'Not tracking {pair}')
-
-        if packet['TCP'].flags == TCP.ACK:
-            logger.debug('Received ACK')
-
-            if pair in self.conntrack:
-                conn = self.conntrack[pair]
-                if conn.state == Connection.STATE_SYNACK_RECEIVED:
-#                    if packet['TCP'].ack == conn.seq+1:
-                    conn.state = Connection.STATE_ACK_RECEIVED
-                    logger.info(f'Connection established: {pair}')
-                    self.onConnectionEstablished(conn)
-            else:
-                logger.warning(f'Not tracking {pair}')
+        else:
+            conn = Connection.FromPacket(packet)
+            if conn:
+                self.conntrack[pair] = conn
