@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 class EventHandler:
     def __init__(self, handler, filt=None):
         self.handler = handler
@@ -5,7 +8,14 @@ class EventHandler:
 
     def __call__(self, *args, **kwargs):
         if callable(self.filt):
-            if self.filt(*args, **kwargs):
+            match = False
+            try:
+                match = self.filt(*args, **kwargs)
+            except AttributeError as e:
+                pass
+            except Exception:
+                logger.error("event filter caused an exception", exc_info=1)
+            if match:
                 self.handler(*args, **kwargs)
         else:
             self.handler(*args, **kwargs)
