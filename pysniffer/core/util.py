@@ -11,7 +11,7 @@ class EventHandler:
             match = False
             try:
                 match = self.filt(*args, **kwargs)
-            except AttributeError as e:
+            except AttributeError:
                 pass
             except Exception:
                 logger.error("event filter caused an exception", exc_info=1)
