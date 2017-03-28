@@ -1,0 +1,1 @@
+from pysniffer.l2.eth import Ethernet
