@@ -1,6 +1,8 @@
 import logging
 from pysniffer.core.util import Event
 
+logger = logging.getLogger(__name__)
+
 class Sniffer:
     def __init__(self):
         self.ifname = None

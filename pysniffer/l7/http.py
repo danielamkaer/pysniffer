@@ -1,5 +1,7 @@
 import pysniffer.l4
 
+logger = logging.getLogger(__name__)
+
 class Http:
 
     def register(self, app):

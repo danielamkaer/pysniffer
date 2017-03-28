@@ -7,6 +7,8 @@ import pysniffer.l4
 import pysniffer.l7
 import inspect
 
+logger = logging.getLogger(__name__)
+
 class Container:
     def __init__(self):
         self.instances = {}
@@ -16,7 +18,7 @@ class Container:
             return self.instances[key]
 
         if inspect.isclass(key):
-            logging.debug(f'Autocreating type {key}.')
+            logger.debug(f'Autocreating type {key}.')
             self.instances[key] = key()
             return self.instances[key]
 
@@ -32,7 +34,7 @@ class Application(Container):
         self.parser = argparse.ArgumentParser("pysniffer")
         self.parser.add_argument('ifname', metavar='<ifname>', type=str, help='interface to listen on')
         self.args = self.parser.parse_args(self.argv[1:])
-        logging.debug(f'Interface set to "{self.args.ifname}".')
+        logger.debug(f'Interface set to "{self.args.ifname}".')
 
         for t in Application.register:
             self[t].register(self)
@@ -46,6 +48,6 @@ class Application(Container):
         for t in Application.register:
             self[t].boot()
 
-        logging.info('Starting sniffer.')
+        logger.info('Starting sniffer.')
         sniffer.start()
-        logging.info('Sniffer stopped.')
+        logger.info('Sniffer stopped.')
