@@ -6,21 +6,17 @@ from scapy.layers.inet import IP_PROTOS
 
 logger = logging.getLogger(__name__)
 
-class ConnectionClosed(Exception):
-    pass
-
-class InvalidConnection(Exception):
-    pass
-
 class Connection:
     STATE_STARTED = 'STATE_STARTED'
     STATUS_ESTABLISHED = 'STATUS_ESTABLISHED'
+    TIMEOUT = 5 # second
 
-    def __init__(self, src, dst, sport, dport):
+    def __init__(self, src, dst, sport, dport, time):
         self.src = src
         self.dst = dst
         self.sport = sport
         self.dport = dport
+        self.time = time
         self.state = Connection.STATE_STARTED
 
         self.onClientSent = pysniffer.core.Event()
@@ -34,10 +30,13 @@ class Connection:
         if not 'UDP' in packet:
             return None
         
-        return Connection(*UDP.UdpPair(packet))
+        return Connection(*UDP.UdpPair(packet), packet.time)
 
-    def HandleFrame(self, packet):
-        pass
+    def isExpired(self, time):
+        if time > self.time + Connection.TIMEOUT:
+            return True
+        else:
+            return False
 
 class UDP:
     def __init__(self):
@@ -70,12 +69,27 @@ class UDP:
 
     async def OnFrameReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.summary()}')
+
+        for pair in self.conntrack:
+            if self.conntrack[pair].isExpired(packet.time):
+                logger.info(f'Timeout between: {pair[0]}:{pair[2]} --> {pair[1]}:{pair[3]}')
+                del self.conntrack[pair]
+
         pair = UDP.UdpPair(packet)
         revpair = UDP.UdpPairReversed(packet)
+
+        rev = False
 
         if pair in self.conntrack or revpair in self.conntrack:
             if pair not in self.conntrack:
                 pair = revpair
+                rev = True
+            
+            self.conntrack[pair].time = packet.time
+            if rev:
+                await conn.onServerSent(conn, packet)
+            else:
+                await conn.onClientSent(conn, packet)
 
         else:
             conn = Connection.FromPacket(packet)
@@ -83,3 +97,4 @@ class UDP:
                 self.conntrack[pair] = conn
                 logger.info(f'New connection established: {packet.summary()}')
                 await self.onConnectionEstablished(self.conntrack[pair])
+                await conn.onClientSent(conn, packet)
