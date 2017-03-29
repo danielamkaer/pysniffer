@@ -11,6 +11,7 @@ class Sniffer:
         self.store = 0
         self.packets = []
         self.onPacketReceived = Event()
+        self.stopRequested = False
 
     def setApp(self, app):
         self.app = app
@@ -24,10 +25,20 @@ class Sniffer:
     def getPackets(self):
         return self.packets
 
+    def stop(self):
+        print()
+        print()
+        print()
+        print("STOPPING AFTER NEXT PACKET")
+        print()
+        print()
+        print()
+        self.stopRequested = True
+
     async def start(self):
         import scapy.all
         loop = self.app[asyncio.BaseEventLoop]
-        self.packets = await loop.run_in_executor(None, functools.partial(scapy.all.sniff, iface=self.ifname, store=self.store, prn=self.OnPacketReceived))
+        self.packets = await loop.run_in_executor(None, functools.partial(scapy.all.sniff, iface=self.ifname, store=self.store, prn=self.OnPacketReceived, stop_filter=lambda pkt: self.stopRequested))
 
     def OnPacketReceived(self, packet):
         loop = self.app[asyncio.BaseEventLoop]
