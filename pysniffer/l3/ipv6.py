@@ -16,6 +16,6 @@ class IPv6:
     def boot(self):
         self.app[pysniffer.l2.Ethernet].onFrameReceived += self.OnFrameReceived, lambda pkt: pkt.type == ETHER_TYPES.IPv6
 
-    def OnFrameReceived(self, packet):
+    async def OnFrameReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.summary()}')
-        self.onFrameReceived(packet)
+        await self.onFrameReceived(packet)

@@ -6,7 +6,7 @@ class EventHandler:
         self.handler = handler
         self.filt = filt
 
-    def __call__(self, *args, **kwargs):
+    async def __call__(self, *args, **kwargs):
         if callable(self.filt):
             match = False
             try:
@@ -16,9 +16,9 @@ class EventHandler:
             except Exception:
                 logger.error("event filter caused an exception", exc_info=1)
             if match:
-                self.handler(*args, **kwargs)
+                await self.handler(*args, **kwargs)
         else:
-            self.handler(*args, **kwargs)
+            await self.handler(*args, **kwargs)
 
 class Event:
     def __init__(self):
@@ -43,9 +43,9 @@ class Event:
             raise ValueError("Handler is not handling this event, so cannot unhandle it.")
         return self
 
-    def fire(self, *args, **kargs):
+    async def fire(self, *args, **kargs):
         for handler in self.handlers.copy():
-            handler(*args, **kargs)
+            await handler(*args, **kargs)
 
     def getHandlerCount(self):
         return len(self.handlers)

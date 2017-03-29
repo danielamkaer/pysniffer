@@ -1,5 +1,7 @@
 import logging
 from pysniffer.core.util import Event
+import asyncio
+import functools
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +12,9 @@ class Sniffer:
         self.packets = []
         self.onPacketReceived = Event()
 
+    def setApp(self, app):
+        self.app = app
+
     def setInterface(self, ifname):
         self.ifname = ifname
 
@@ -19,9 +24,12 @@ class Sniffer:
     def getPackets(self):
         return self.packets
 
-    def start(self):
+    async def start(self):
         import scapy.all
-        self.packets = scapy.all.sniff(iface=self.ifname, store=self.store, prn=self.OnPacketReceived)
+        loop = self.app[asyncio.BaseEventLoop]
+        self.packets = await loop.run_in_executor(None, functools.partial(scapy.all.sniff, iface=self.ifname, store=self.store, prn=self.OnPacketReceived))
 
     def OnPacketReceived(self, packet):
-        self.onPacketReceived(packet)
+        loop = self.app[asyncio.BaseEventLoop]
+        asyncio.run_coroutine_threadsafe(self.onPacketReceived(packet), loop)
+        #self.onPacketReceived(packet)

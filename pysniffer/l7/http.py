@@ -14,10 +14,10 @@ class Http:
     def boot(self):
         self.app[pysniffer.l4.TCP].onConnectionEstablished += self.OnConnectionEstablished
 
-    def OnConnectionEstablished(self, conn):
+    async def OnConnectionEstablished(self, conn):
         conn.onClientSent += self.OnClientSent
 
-    def OnClientSent(self, conn, packet):
+    async def OnClientSent(self, conn, packet):
         conn.onClientSent -= self.OnClientSent
         payload = bytes(packet['Raw'].load)
 
@@ -25,7 +25,7 @@ class Http:
             logger.info("Found HTTP client")
             conn.onServerSent += self.OnServerSent
 
-    def OnServerSent(self, conn, packet):
+    async def OnServerSent(self, conn, packet):
         conn.onServerSent -= self.OnServerSent
         payload = bytes(packet['Raw'].load)
 

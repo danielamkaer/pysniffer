@@ -120,7 +120,7 @@ class TCP:
         self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.tcp
         self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.tcp
 
-    def OnFrameReceived(self, packet):
+    async def OnFrameReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.summary()}')
         pair = TCP.TcpPair(packet)
         revpair = TCP.TcpPairReversed(packet)
@@ -131,14 +131,14 @@ class TCP:
                 
             status = None
             try:
-                status = self.conntrack[pair].HandleFrame(packet)
+                status = await self.conntrack[pair].HandleFrame(packet)
             except InvalidConnection:
                 del self.conntrack[pair]
             except ConnectionClosed:
                 del self.conntrack[pair]
 
             if status == Connection.STATUS_ESTABLISHED:
-                self.onConnectionEstablished(self.conntrack[pair])
+                await self.onConnectionEstablished(self.conntrack[pair])
 
         else:
             conn = Connection.FromPacket(packet)

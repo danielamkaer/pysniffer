@@ -6,12 +6,14 @@ import pysniffer.l3
 import pysniffer.l4
 import pysniffer.l7
 import inspect
+import asyncio
 
 logger = logging.getLogger(__name__)
 
 class Container:
     def __init__(self):
         self.instances = {}
+        self[asyncio.BaseEventLoop] = asyncio.get_event_loop()
 
     def __getitem__(self, key):
         if key in self.instances:
@@ -43,11 +45,12 @@ class Application(Container):
 
 
         sniffer = self[Sniffer]
+        sniffer.setApp(self)
         sniffer.setInterface(self.args.ifname)
 
         for t in Application.register:
             self[t].boot()
 
         logger.info('Starting sniffer.')
-        sniffer.start()
+        self[asyncio.BaseEventLoop].run_until_complete(sniffer.start())
         logger.info('Sniffer stopped.')
