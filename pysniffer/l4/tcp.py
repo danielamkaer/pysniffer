@@ -23,8 +23,10 @@ class Connection:
         self.dst = dst
         self.sport = sport
         self.dport = dport
-        self.sseq = seq
+        self.startsseq = seq
+        self.sseq = seq + 1
         self.sack = 0
+        self.startdseq = 0
         self.dseq = 0
         self.dack = 0
         self.state = Connection.STATE_SYN_RECEIVED
@@ -43,14 +45,16 @@ class Connection:
         if packet['TCP'].flags != TCP.SYN:
             return None
 
-        return Connection(*TCP.TcpPair(packet), packet['TCP'].seq)
+        conn = Connection(*TCP.TcpPair(packet), packet['TCP'].seq)
+        return conn
 
-    def HandleFrame(self, packet):
+    async def HandleFrame(self, packet):
         if self.state == Connection.STATE_SYN_RECEIVED:
             if packet['TCP'].flags == TCP.SYN|TCP.ACK:
-                if packet['TCP'].ack == self.sseq+1:
+                if packet['TCP'].ack == self.sseq:
                     self.state = Connection.STATE_SYNACK_RECEIVED
-                    self.dseq = packet['TCP'].seq
+                    self.dseq = packet['TCP'].seq + 1
+                    self.startdseq = packet['TCP'].seq
                     self.dack = packet['TCP'].ack
                 else:
                     logger.warning("3wh: SYN+ACK received with wrong sequence number.")
@@ -61,7 +65,7 @@ class Connection:
 
         elif self.state == Connection.STATE_SYNACK_RECEIVED:
             if packet['TCP'].flags == TCP.ACK:
-                if packet['TCP'].ack == self.dseq+1:
+                if packet['TCP'].ack == self.dseq:
                     self.state = Connection.STATE_ACK_RECEIVED
                     self.sack = packet['TCP'].ack
                     logger.info(f"3wh: Connection established between {self.src}:{self.sport} -> {self.dst}:{self.dport}")
@@ -76,11 +80,18 @@ class Connection:
             if packet['TCP'].flags & TCP.FIN:
                 logger.info(f"3wh: Connection closed between {self.src}:{self.sport} -> {self.dst}:{self.dport}")
                 raise ConnectionClosed()
-            elif 'Raw' in packet:
+            elif packet['TCP'].flags & TCP.ACK:
                 if TCP.TcpPair(packet) == self.pair():
-                    self.onClientSent(self, packet)
+                    self.sack = packet['TCP'].ack
+                    if 'Raw' in packet:
+                        self.sseq += len(packet['Raw'].load)
+                        await self.onClientSent(self, packet)
                 else:
-                    self.onServerSent(self, packet)
+                    self.dack = packet['TCP'].ack
+                    if 'Raw' in packet:
+                        self.dseq += len(packet['Raw'].load)
+                        await self.onServerSent(self, packet)
+
                 
 class TCP:
     FIN = 0x01
