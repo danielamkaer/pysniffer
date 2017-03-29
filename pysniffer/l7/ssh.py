@@ -5,7 +5,7 @@ import re
 
 class Ssh:
 
-    REGEX = re.compile('^SSH-(.+?)$')
+    REGEX = re.compile(b'^SSH-(.+?)\r?$')
 
     def register(self, app):
         self.app = app
@@ -20,7 +20,7 @@ class Ssh:
         conn.onClientSent -= self.OnClientSent
         payload = bytes(packet['Raw'].load)
 
-        m = Ssh.REGEX.match(payload.decode())
+        m = Ssh.REGEX.match(payload)
         if m:
             logger.info(f"Found SSH client : {m.group(1)}")
             conn.onServerSent += self.OnServerSent
@@ -29,7 +29,7 @@ class Ssh:
         conn.onServerSent -= self.OnServerSent
         payload = bytes(packet['Raw'].load)
 
-        m = Ssh.REGEX.match(payload.decode())
+        m = Ssh.REGEX.match(payload)
         if m:
             logger.info(f"Found SSH server : {m.group(1)}")
 

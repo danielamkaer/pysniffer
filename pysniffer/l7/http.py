@@ -5,8 +5,8 @@ import re
 
 class Http:
 
-    REGEX_cli = re.compile('^(GET|POST|DELETE|PUT|PATCH|HEAD) (.+) HTTP/(\d\.\d)')
-    REGEX_srv = re.compile('^HTTP\/(\d\.\d) (\d{3}) (.+?)')
+    REGEX_cli = re.compile(b'^(GET|POST|DELETE|PUT|PATCH|HEAD) (.+) HTTP/(\d\.\d)')
+    REGEX_srv = re.compile(b'^HTTP\/(\d\.\d) (\d{3}) (.+?)')
 
     def register(self, app):
         self.app = app
@@ -21,7 +21,7 @@ class Http:
         conn.onClientSent -= self.OnClientSent
         payload = bytes(packet['Raw'].load)
 
-        if Http.REGEX_cli.match(payload.decode()):
+        if Http.REGEX_cli.match(payload):
             logger.info("Found HTTP client")
             conn.onServerSent += self.OnServerSent
 
@@ -29,6 +29,6 @@ class Http:
         conn.onServerSent -= self.OnServerSent
         payload = bytes(packet['Raw'].load)
 
-        if Http.REGEX_srv.match(payload.decode()):
+        if Http.REGEX_srv.match(payload):
             logger.info("Found HTTP server")
 
