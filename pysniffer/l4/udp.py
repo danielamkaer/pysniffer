@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class Connection:
     STATE_STARTED = 'STATE_STARTED'
     STATUS_ESTABLISHED = 'STATUS_ESTABLISHED'
-    TIMEOUT = 5 # second
+    TIMEOUT = 300 # second
 
     def __init__(self, src, dst, sport, dport, time):
         self.src = src
