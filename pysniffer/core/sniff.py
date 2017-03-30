@@ -42,5 +42,16 @@ class Sniffer:
 
     def OnPacketReceived(self, packet):
         loop = self.app[asyncio.BaseEventLoop]
-        asyncio.run_coroutine_threadsafe(self.onPacketReceived(packet), loop)
-        #self.onPacketReceived(packet)
+        fut = asyncio.run_coroutine_threadsafe(self.onPacketReceived(packet), loop)
+        self.checkException(fut)
+
+    def checkException(self, fut):
+        fut.add_done_callback(self.doCheckException)
+
+    def doCheckException(self, fut):
+        if fut.exception():
+            loop = self.app[asyncio.BaseEventLoop]
+            loop.call_soon_threadsafe(self.doRaiseException, fut.exception())
+
+    def doRaiseException(self, ex):
+        raise ex
