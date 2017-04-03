@@ -70,7 +70,7 @@ class UDP:
     async def OnFrameReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.summary()}')
 
-        for pair in self.conntrack:
+        for pair in self.conntrack.copy():
             if self.conntrack[pair].isExpired(packet.time):
                 logger.info(f'Timeout between: {pair[0]}:{pair[2]} --> {pair[1]}:{pair[3]}')
                 del self.conntrack[pair]
@@ -84,8 +84,8 @@ class UDP:
             if pair not in self.conntrack:
                 pair = revpair
                 rev = True
-            
-            self.conntrack[pair].time = packet.time
+            conn = self.conntrack[pair]
+            conn.time = packet.time
             if rev:
                 await conn.onServerSent(conn, packet)
             else:
