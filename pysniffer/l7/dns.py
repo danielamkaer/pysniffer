@@ -40,8 +40,8 @@ class Dns:
             return
 
         if packet.dport == Dns.PORT and \
-           payload.ancount == dnsqtypes['ANY'] and \
-           payload.nscount == dnsqtypes['ANY']:
+           payload.ancount == Dns.QUERY_ANCOUNT and \
+           payload.nscount == Dns.QUERY_NSCOUNT:
             id = payload.id
             logger.info(f'Found DNS query id: {hex(id)}')
             self.queries[id] = Query(id, packet.time)
@@ -64,7 +64,7 @@ class Dns:
                 response = list()
 
                 for i in range(payload.ancount):
-                    if payload.an[i].type == inv_dnsqtypes('A'):
+                    if payload.an[i].type == inv_dnsqtypes['A']:
                         response.append(payload.an[i].rdata)
                         logger.debug(f'{payload.an[i].rrname} {payload.an[i].type} {payload.an[i].rdata}')
                 logger.info(f'Found DNS response {[i for i in response]} to {self.queries[id].query}')
