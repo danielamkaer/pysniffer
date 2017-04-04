@@ -37,8 +37,24 @@ class Connection:
             return True
         else:
             return False
+    @staticmethod    
+    def PortUnreachable(packet, conntrack):
+        if not 'ICMP' in packet:
+            return False
+        else:
+            if 'IP' in packet or 'IPv6' in packet:
+                for pair in conntrack:
+                    if packet['IP'].src ==  pair[1] and packet['IP'].dst == pair[0]:
+                        logger.debug(f'portunreachable pair: {pair}')
+                        return True
+                    elif packet['IPv6'].src == pair[1] and packet['IPv6'].dst == pair[0]:
+                        logger.debug(f'portunreachable pair: {pair}')
+                        return True
+                    else:
+                        pass
 
 class UDP:
+    UDPerror = 4
     def __init__(self):
         self.conntrack = {}
         self.onConnectionEstablished = pysniffer.core.Event()
@@ -64,10 +80,12 @@ class UDP:
         self.app = app
 
     def boot(self):
-        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.udp
-        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.udp
+        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnUdpReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.udp
+        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnUdpReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.udp
+        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnIcmpReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.icmp
+        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnIcmpReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.icmp
 
-    async def OnFrameReceived(self, packet):
+    async def OnUdpReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.summary()}')
 
         for pair in self.conntrack.copy():
@@ -98,3 +116,19 @@ class UDP:
                 logger.info(f'New connection established: {packet.summary()}')
                 await self.onConnectionEstablished(self.conntrack[pair])
                 await conn.onClientSent(conn, packet)
+
+    async def OnIcmpReceived(self,packet):
+        if 'UDPerror' in packet:
+            udpError = packet[UDP.UDPerror]
+            pair = (packet['IP'].src, packet['IP'].dst, udpError.dport, udpError.sport)
+            revpair = (pair[1], pair[0], pair[3], pair[2])
+            if Connection.PortUnreachable(packet, self.conntrack):
+                logger.debug(f'icmp pair: {pair}')
+                if pair in self.conntrack or revpair in self.conntrack:
+                    logger.debug(f'ICMP matches UDP packet: {packet.summary()}')
+                    if pair not in self.conntrack:
+                        pair = revpair
+                    logger.info(f'Port {udpError.dport} unreachable at host {packet["IP"].src}, connection deleted')
+                    del self.conntrack[pair]
+        else:
+            pass
