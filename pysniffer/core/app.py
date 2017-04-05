@@ -29,7 +29,7 @@ class Container:
         self.instances[key] = item
 
 class Application(Container):
-    register = [pysniffer.l2.Ethernet, pysniffer.l3.IPv4, pysniffer.l3.IPv6, pysniffer.l4.TCP, pysniffer.l4.UDP, pysniffer.l7.Http, pysniffer.l7.Ssh]
+    register = [pysniffer.l2.Ethernet, pysniffer.l3.IPv4, pysniffer.l3.IPv6, pysniffer.l4.TCP, pysniffer.l4.UDP, pysniffer.l7.Http, pysniffer.l7.Ssh, pysniffer.l7.Dns]
     def __init__(self, argv):
         super().__init__()
         self.argv = argv
