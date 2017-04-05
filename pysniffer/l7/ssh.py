@@ -35,3 +35,14 @@ class Ssh:
             logger.info(f"Found SSH server : {m.group(1)}")
 
 
+
+#    async def OnConnectionEstablished(self, conn):
+#        cli_msg = await conn.serverIn.read()
+#        if not Ssh.REGEX.match(cli_msg):
+#            return
+#
+#        srv_msg = await conn.serverOut.read()
+#        if not Ssh.REGEX.match(srv_msg):
+#            return
+#
+#        logger.info("Found SSH connection")

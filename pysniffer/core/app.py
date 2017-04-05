@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class Container:
     def __init__(self):
         self.instances = {}
-        self[asyncio.BaseEventLoop] = asyncio.get_event_loop()
+        self[asyncio.BaseEventLoop] = asyncio.new_event_loop()
 
     def __getitem__(self, key):
         if key in self.instances:
