@@ -12,6 +12,9 @@ class ConnectionClosed(Exception):
 class InvalidConnection(Exception):
     pass
 
+class OpenPortReport:
+    pass
+
 class Connection:
     STATE_SYN_RECEIVED = 'STATE_SYN_RECEIVED'
     STATE_SYNACK_RECEIVED = 'STATE_SYNACK_RECEIVED'
@@ -149,6 +152,10 @@ class TCP:
                 del self.conntrack[pair]
 
             if status == Connection.STATUS_ESTABLISHED:
+                report = OpenPortReport()
+                report.host = pair[1]
+                report.port = pair[3]
+                await self.app.report(self, report)
                 await self.onConnectionEstablished(self.conntrack[pair])
 
         else:

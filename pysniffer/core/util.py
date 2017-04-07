@@ -1,6 +1,8 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import inspect
+
 class EventHandler:
     def __init__(self, handler, filt=None):
         self.handler = handler
@@ -16,9 +18,15 @@ class EventHandler:
             except Exception:
                 logger.error("event filter caused an exception", exc_info=1)
             if match:
-                await self.handler(*args, **kwargs)
+                if inspect.iscoroutinefunction(self.handler):
+                    await self.handler(*args, **kwargs)
+                else:
+                    self.handler(*args, **kwargs)
         else:
-            await self.handler(*args, **kwargs)
+            if inspect.iscoroutinefunction(self.handler):
+                await self.handler(*args, **kwargs)
+            else:
+                self.handler(*args, **kwargs)
 
 class Event:
     def __init__(self):

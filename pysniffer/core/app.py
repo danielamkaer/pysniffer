@@ -34,9 +34,13 @@ class Application(Container):
         super().__init__()
         self.argv = argv
         self.handleArguments()
+        self.onReport = pysniffer.core.Event()
 
         for t in Application.register:
             self[t].register(self)
+
+    async def report(self, caller, report):
+        await self.onReport(caller, report)
 
     def handleArguments(self):
         self.parser = argparse.ArgumentParser("pysniffer")
@@ -83,7 +87,7 @@ class Application(Container):
             self[t].boot()
 
         loop = self[asyncio.BaseEventLoop]
-        loop.add_signal_handler(signal.SIGINT, sniffer.stop)
+        #loop.add_signal_handler(signal.SIGINT, sniffer.stop)
 
         logger.info('Starting sniffer.')
         loop.run_until_complete(sniffer.start())
