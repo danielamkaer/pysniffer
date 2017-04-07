@@ -9,6 +9,8 @@ import inspect
 import asyncio
 import signal
 
+from pysniffer.core.modules import REGISTER
+
 logger = logging.getLogger(__name__)
 
 class Container:
@@ -29,14 +31,13 @@ class Container:
         self.instances[key] = item
 
 class Application(Container):
-    register = [pysniffer.l2.Ethernet, pysniffer.l3.IPv4, pysniffer.l3.IPv6, pysniffer.l4.TCP, pysniffer.l4.UDP, pysniffer.l7.Http, pysniffer.l7.Ssh, pysniffer.l7.Dns]
     def __init__(self, argv):
         super().__init__()
         self.argv = argv
         self.handleArguments()
         self.onReport = pysniffer.core.Event()
 
-        for t in Application.register:
+        for t in REGISTER:
             self[t].register(self)
 
     async def report(self, caller, report):
@@ -83,7 +84,7 @@ class Application(Container):
         sniffer.setApp(self)
         sniffer.setInterface(self.args.ifname)
 
-        for t in Application.register:
+        for t in REGISTER:
             self[t].boot()
 
         loop = self[asyncio.BaseEventLoop]
