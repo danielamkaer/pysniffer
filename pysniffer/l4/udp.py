@@ -60,13 +60,13 @@ class UDP:
         self.app = app
 
     def boot(self):
-        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnUdpReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.udp
-        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnUdpReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.udp
-        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnIcmpReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.icmp
-        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnIcmpReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.ipv6_icmp
+        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnUdpReceived, lambda pkt:pkt.scapy['IP'].proto == IP_PROTOS.udp
+        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnUdpReceived, lambda pkt:pkt.scapy['IPv6'].nh == IP_PROTOS.udp
+        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnIcmpReceived, lambda pkt:pkt.scapy['IP'].proto == IP_PROTOS.icmp
+        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnIcmpReceived, lambda pkt:pkt.scapy['IPv6'].nh == IP_PROTOS.ipv6_icmp
 
     async def OnUdpReceived(self, packet):
-        logger.debug(f'{self} received packet: {packet.summary()}')
+        logger.debug(f'{self} received packet: {packet.scapy.summary()}')
 
         for pair in self.conntrack.copy():
             if self.conntrack[pair].isExpired(packet.scapy.time):
@@ -93,7 +93,7 @@ class UDP:
             conn = Connection.FromPacket(packet)
             if conn:
                 self.conntrack[pair] = conn
-                logger.info(f'New connection established: {packet.summary()}')
+                logger.info(f'New connection established: {packet.scapy.summary()}')
                 await self.onConnectionEstablished(self.conntrack[pair])
                 await conn.onClientSent(conn, packet)
 

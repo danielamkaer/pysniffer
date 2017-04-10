@@ -91,7 +91,7 @@ class Connection:
             elif packet.scapy['TCP'].flags & TCP.ACK:
                 if TCP.TcpPair(packet) == self.pair():
                     self.sack = packet.scapy['TCP'].ack
-                    if 'Raw' in packet:
+                    if 'Raw' in packet.scapy:
                         self.sseq += len(packet.scapy['Raw'].load)
                         await self.onClientSent(self, packet)
                 else:
@@ -131,8 +131,8 @@ class TCP:
         self.app = app
 
     def boot(self):
-        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IP'].proto == IP_PROTOS.tcp
-        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.tcp
+        self.app[pysniffer.l3.IPv4].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt.scapy['IP'].proto == IP_PROTOS.tcp
+        self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt.scapy['IPv6'].nh == IP_PROTOS.tcp
 
     async def OnFrameReceived(self, packet):
         logger.debug(f'{self} received packet: {packet.scapy.summary()}')

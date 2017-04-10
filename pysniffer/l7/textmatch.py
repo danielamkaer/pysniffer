@@ -103,8 +103,8 @@ class Http(TextMatch):
         return self.REGEX_srv    
 
     async def generateReports(self, packet):
-        await self.app.report(self, HttpClientReport(host=packet["IP"].dst, dest=packet["IP"].src, port=packet['TCP'].sport, software=None))
-        await self.app.report(self, HttpServerReport(host=packet["IP"].src, port=packet['TCP'].sport, software=None))
+        await self.app.report(self, HttpClientReport(host=packet.ip_dst, dest=packet.ip_src, port=packet.port_src, software=None))
+        await self.app.report(self, HttpServerReport(host=packet.ip_src, port=packet.port_src, software=None))
         
 class Ssh(TextMatch):
     REGEX = re.compile(b'^SSH-(.+?)\r?$')
