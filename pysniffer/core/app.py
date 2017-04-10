@@ -9,6 +9,14 @@ import signal
 
 logger = logging.getLogger(__name__)
 
+class Arguments:
+    def __init__(self):
+        self.verbose = False
+        self.warning = []
+        self.debug = []
+        self.info = []
+        self.ifname = ""
+
 class Container:
     def __init__(self):
         self.instances = {}
@@ -27,11 +35,17 @@ class Container:
         self.instances[key] = item
 
 class Application(Container):
-    def __init__(self, argv):
+    def __init__(self, argv=None, **kwargs):
         from pysniffer.core.modules import REGISTER
         super().__init__()
-        self.argv = argv
-        self.handleArguments()
+
+        if argv:
+            self.argv = argv
+            self.handleArguments()
+        else:
+            self.handleKeywordArguments(kwargs)
+
+        self.configure()
         self.onReport = pysniffer.core.Event()
 
         for t in REGISTER:
@@ -39,6 +53,11 @@ class Application(Container):
 
     async def report(self, caller, report):
         await self.onReport(caller, report)
+
+    def handleKeywordArguments(self, kwargs):
+        self.args = Arguments()
+        for key in kwargs:
+            setattr(self.args, key, kwargs[key])
 
     def handleArguments(self):
         self.parser = argparse.ArgumentParser("pysniffer")
@@ -49,6 +68,8 @@ class Application(Container):
         self.parser.add_argument('-v', action='store_true', dest='verbose')
 
         self.args = self.parser.parse_args(self.argv[1:])
+
+    def configure(self):
 
         if self.args.verbose:
             logging.basicConfig(level=logging.DEBUG)
