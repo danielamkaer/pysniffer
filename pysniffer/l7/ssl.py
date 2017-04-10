@@ -49,6 +49,7 @@ class Session:
             conn.onServerSent += self.processServerMessage
         else:
             logger.error(f'Unexpected packet: {packet.scapy.summary()}')
+            self.ssl.deleteMe(self)
             
     async def processServerMessage(self, conn, packet):
         logger.debug(f'(server) packet id: {hex(id(packet))}')
@@ -62,4 +63,4 @@ class Session:
             self.ssl.deleteMe(self)
         else:
             logger.error(f'unexpected packet: {packet.scapy.summary()}')
-        
+            self.ssl.deleteMe(self)

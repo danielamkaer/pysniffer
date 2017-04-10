@@ -3,16 +3,49 @@ import logging
 logger = logging.getLogger(__name__)
 import re
 
+class HttpClientReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'Client IP address',
+        'port': 'Server port',
+        'dest': 'Server IP address',
+        'software': 'Client user agent, if detected'
+    }
+
+class HttpServerReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'Server IP address',
+        'port': 'Server port',
+        'software': 'Server software version, if detected'
+    }
+
+class SshClientReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'Client IP address',
+        'port': 'Server port',
+        'dest': 'Server IP address',
+        'software': 'Client user agent, if detected'
+    }
+
+class SshServerReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'Server IP address',
+        'port': 'Server port',
+        'software': 'Server software version, if detected'
+    }
+
 class TextMatch:
 
     def doesClientSendFirstMessage(self):
-        raise NotImplementedError("getDirection must be implemented.")
+        raise NotImplementedError("doesClientSendFirstMessage must be implemented.")
 
     def getFirstPattern(self):
-        raise NotImplementedError("getDirection must be implemented.")
+        raise NotImplementedError("getFirstPattern must be implemented.")
 
     def getSecondPattern(self):
-        raise NotImplementedError("getDirection must be implemented.")
+        raise NotImplementedError("getSecondPattern must be implemented.")
+
+    def generateReports(self, packet):
+        raise NotImplementedError("generateReports must be implemented.")
 
     def register(self, app):
         self.app = app
@@ -55,6 +88,7 @@ class TextMatch:
 
         if self.getSecondPattern().match(payload):
             logger.info(f"Found {self.__class__.__name__} service")
+            await self.generateReports(packet)
 
 class Http(TextMatch):
     REGEX_cli = re.compile(b'^(GET|POST|DELETE|PUT|PATCH|HEAD) (.+) HTTP/(\d\.\d)')
@@ -67,6 +101,10 @@ class Http(TextMatch):
 
     def getSecondPattern(self):
         return self.REGEX_srv    
+
+    async def generateReports(self, packet):
+        await self.app.report(self, HttpClientReport(host=packet["IP"].dst, dest=packet["IP"].src, port=packet['TCP'].sport, software=None))
+        await self.app.report(self, HttpServerReport(host=packet["IP"].src, port=packet['TCP'].sport, software=None))
         
 class Ssh(TextMatch):
     REGEX = re.compile(b'^SSH-(.+?)\r?$')
@@ -78,4 +116,8 @@ class Ssh(TextMatch):
 
     def getSecondPattern(self):
         return self.REGEX    
+
+    async def generateReports(self, packet):
+        await self.app.report(self, SshClientReport(host=packet["IP"].dst, dest=packet["IP"].src, port=packet['TCP'].sport, software=None))
+        await self.app.report(self, SshServerReport(host=packet["IP"].src, port=packet['TCP'].sport, software=None))
         
