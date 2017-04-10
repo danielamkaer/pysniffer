@@ -12,8 +12,13 @@ class ConnectionClosed(Exception):
 class InvalidConnection(Exception):
     pass
 
-class OpenPortReport:
-    pass
+class OpenPortReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'The host listening on a TCP port',
+        'port': 'The port that is being listened on'
+    }
+class ConnectsToReport(pysniffer.core.Report):
+    FIELDS = ['host', 'dst', 'port']
 
 class Connection:
     STATE_SYN_RECEIVED = 'STATE_SYN_RECEIVED'
@@ -152,10 +157,8 @@ class TCP:
                 del self.conntrack[pair]
 
             if status == Connection.STATUS_ESTABLISHED:
-                report = OpenPortReport()
-                report.host = pair[1]
-                report.port = pair[3]
-                await self.app.report(self, report)
+                await self.app.report(self, OpenPortReport(host=pair[1], port=pair[3]))
+                await self.app.report(self, ConnectsToReport(host=pair[0], dst=pair[1], port=pair[3]))
                 await self.onConnectionEstablished(self.conntrack[pair])
 
         else:

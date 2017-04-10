@@ -3,6 +3,16 @@ logger = logging.getLogger(__name__)
 
 import inspect
 
+class Report:
+    def __init__(self, **kwargs):
+        if not hasattr(self.__class__,'FIELDS'):
+            raise ValueError(f"Missing FIELDS specification on {self.__class__.__name__}")
+        for req in self.__class__.FIELDS:
+            if req not in kwargs:
+                raise ValueError(f"Missing field '{req}'")
+        for arg in kwargs:
+            setattr(self, arg, kwargs[arg])
+
 class EventHandler:
     def __init__(self, handler, filt=None):
         self.handler = handler
