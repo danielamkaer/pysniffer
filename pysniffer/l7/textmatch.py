@@ -33,7 +33,7 @@ class TextMatch:
         else:
             conn.onServerSent -= self.onFirstMessage
 
-        payload = packet['Raw'].load
+        payload = packet.scapy['Raw'].load
 
         if self.getFirstPattern().match(payload):
             if self.getSecondPattern() == None:
@@ -51,7 +51,7 @@ class TextMatch:
         else:
             conn.onClientSent -= self.onSecondMessage
 
-        payload = bytes(packet['Raw'].load)
+        payload = bytes(packet.scapy['Raw'].load)
 
         if self.getSecondPattern().match(payload):
             logger.info(f"Found {self.__class__.__name__} service")

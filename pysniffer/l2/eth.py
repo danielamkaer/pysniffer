@@ -15,6 +15,6 @@ class Ethernet:
         self.app[pysniffer.core.Sniffer].onPacketReceived += self.OnPacketReceived
     
     async def OnPacketReceived(self, packet):
-        logger.debug(f'{self} received packet: {packet.summary()}')
+        logger.debug(f'{self} received packet: {packet.scapy.summary()}')
 
         await self.onFrameReceived(packet)

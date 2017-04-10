@@ -34,28 +34,28 @@ class Dns:
 
     async def OnClientSent(self, conn, packet):
         conn.onClientSent -= self.OnClientSent
-        if 'DNS' in packet:
-            payload = packet['DNS']
+        if 'DNS' in packet.scapy:
+            payload = packet.scapy['DNS']
         else:
             return
 
-        if packet.dport == Dns.PORT and \
+        if packet.port_dst== Dns.PORT and \
            payload.ancount == Dns.QUERY_ANCOUNT and \
            payload.nscount == Dns.QUERY_NSCOUNT:
             id = payload.id
             logger.info(f'Found DNS query id: {hex(id)}')
-            self.queries[id] = Query(id, packet.time)
+            self.queries[id] = Query(id, packet.scapy.time)
             self.queries[id].query = payload.qd.qname.decode('utf-8')
 
     async def OnServerSent(self, conn, packet):
         conn.onServerSent -= self.OnServerSent
-        if 'DNS' in packet:
-            payload = packet['DNS']
+        if 'DNS' in packet.scapy:
+            payload = packet.scapy['DNS']
         else:
             return
         id = payload.id
         
-        if packet.sport == Dns.PORT and id in self.queries:
+        if packet.port_src == Dns.PORT and id in self.queries:
             if payload.rcode != 0:
                 logger.info(f'DNS query not found for id {self.queries[id].query}')
                 del self.queries[id]

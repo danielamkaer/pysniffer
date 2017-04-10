@@ -40,26 +40,26 @@ class Session:
     
     async def processClientMessage(self, conn, packet):
         logger.debug(f'(client) packet id: {hex(id(packet))}')
-        if not self.parseSslMessage(packet['Raw'].load):
+        if not self.parseSslMessage(packet.scapy['Raw'].load):
             self.ssl.deleteMe(self)
             conn.onClientSent -= self.processClientMessage
-        elif self.state == CLIENT_HELLO and self.parseSslMessage(packet['Raw'].load):
-            logger.info(f'Found \'Client hello\' in ssl connection {packet.summary()}')
+        elif self.state == CLIENT_HELLO and self.parseSslMessage(packet.scapy['Raw'].load):
+            logger.info(f'Found \'Client hello\' in ssl connection {packet.scapy.summary()}')
             conn.onClientSent -= self.processClientMessage
             conn.onServerSent += self.processServerMessage
         else:
-            logger.error(f'Unexpected packet: {packet.summary}')
+            logger.error(f'Unexpected packet: {packet.scapy.summary()}')
             
     async def processServerMessage(self, conn, packet):
         logger.debug(f'(server) packet id: {hex(id(packet))}')
-        if not self.parseSslMessage(packet['Raw'].load):
+        if not self.parseSslMessage(packet.scapy['Raw'].load):
             self.ssl.deleteMe(self)
             conn.onServerSent -= self.processServerMessage
-        elif self.state == CLIENT_HELLO and self.parseSslMessage(packet['Raw'].load):
-            logger.info(f'Found matching Server hello in ssl connection {packet.summary()}')
+        elif self.state == CLIENT_HELLO and self.parseSslMessage(packet.scapy['Raw'].load):
+            logger.info(f'Found matching Server hello in ssl connection {packet.scapy.summary()}')
             conn.onServerSent -= self.processServerMessage
             self.state == SERVER_HELLO
             self.ssl.deleteMe(self)
         else:
-            logger.error(f'unexpected packet: {packet.summary()}')
+            logger.error(f'unexpected packet: {packet.scapy.summary()}')
         

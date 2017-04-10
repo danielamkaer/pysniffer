@@ -47,23 +47,23 @@ class Connection:
 
     @staticmethod
     def FromPacket(packet):
-        if not 'TCP' in packet:
+        if not 'TCP' in packet.scapy:
             return None
         
-        if packet['TCP'].flags != TCP.SYN:
+        if packet.scapy['TCP'].flags != TCP.SYN:
             return None
 
-        conn = Connection(*TCP.TcpPair(packet), packet['TCP'].seq)
+        conn = Connection(*TCP.TcpPair(packet), packet.scapy['TCP'].seq)
         return conn
 
     async def HandleFrame(self, packet):
         if self.state == Connection.STATE_SYN_RECEIVED:
-            if packet['TCP'].flags == TCP.SYN|TCP.ACK:
-                if packet['TCP'].ack == self.sseq:
+            if packet.scapy['TCP'].flags == TCP.SYN|TCP.ACK:
+                if packet.scapy['TCP'].ack == self.sseq:
                     self.state = Connection.STATE_SYNACK_RECEIVED
-                    self.dseq = packet['TCP'].seq + 1
-                    self.startdseq = packet['TCP'].seq
-                    self.dack = packet['TCP'].ack
+                    self.dseq = packet.scapy['TCP'].seq + 1
+                    self.startdseq = packet.scapy['TCP'].seq
+                    self.dack = packet.scapy['TCP'].ack
                 else:
                     logger.warning("3wh: SYN+ACK received with wrong sequence number.")
                     raise InvalidConnection()
@@ -72,10 +72,10 @@ class Connection:
                 raise InvalidConnection()
 
         elif self.state == Connection.STATE_SYNACK_RECEIVED:
-            if packet['TCP'].flags == TCP.ACK:
-                if packet['TCP'].ack == self.dseq:
+            if packet.scapy['TCP'].flags == TCP.ACK:
+                if packet.scapy['TCP'].ack == self.dseq:
                     self.state = Connection.STATE_ACK_RECEIVED
-                    self.sack = packet['TCP'].ack
+                    self.sack = packet.scapy['TCP'].ack
                     logger.info(f"3wh: Connection established between {self.src}:{self.sport} -> {self.dst}:{self.dport}")
                     return Connection.STATUS_ESTABLISHED
                 else:
@@ -85,19 +85,19 @@ class Connection:
                 logger.warning("3wh: Connection is in SYN+ACK received state, but non ACK received.")
                 raise InvalidConnection()
         elif self.state == Connection.STATE_ACK_RECEIVED:
-            if packet['TCP'].flags & TCP.FIN:
+            if packet.scapy['TCP'].flags & TCP.FIN:
                 logger.info(f"3wh: Connection closed between {self.src}:{self.sport} -> {self.dst}:{self.dport}")
                 raise ConnectionClosed()
-            elif packet['TCP'].flags & TCP.ACK:
+            elif packet.scapy['TCP'].flags & TCP.ACK:
                 if TCP.TcpPair(packet) == self.pair():
-                    self.sack = packet['TCP'].ack
+                    self.sack = packet.scapy['TCP'].ack
                     if 'Raw' in packet:
-                        self.sseq += len(packet['Raw'].load)
+                        self.sseq += len(packet.scapy['Raw'].load)
                         await self.onClientSent(self, packet)
                 else:
-                    self.dack = packet['TCP'].ack
-                    if 'Raw' in packet:
-                        self.dseq += len(packet['Raw'].load)
+                    self.dack = packet.scapy['TCP'].ack
+                    if 'Raw' in packet.scapy:
+                        self.dseq += len(packet.scapy['Raw'].load)
                         await self.onServerSent(self, packet)
 
                 
@@ -117,12 +117,7 @@ class TCP:
 
     @staticmethod
     def TcpPair(packet):
-        if 'IP' in packet:
-            return (packet['IP'].src, packet['IP'].dst, packet['TCP'].sport, packet['TCP'].dport)        
-        elif 'IPv6' in packet:
-            return (packet['IPv6'].src, packet['IPv6'].dst, packet['TCP'].sport, packet['TCP'].dport)        
-        
-        return (None,None,None,None)
+        return (packet.ip_src, packet.ip_dst, packet.port_src, packet.port_dst)        
 
     @staticmethod
     def ReversePair(pair):
@@ -140,7 +135,7 @@ class TCP:
         self.app[pysniffer.l3.IPv6].onFrameReceived += self.OnFrameReceived, lambda pkt:pkt['IPv6'].nh == IP_PROTOS.tcp
 
     async def OnFrameReceived(self, packet):
-        logger.debug(f'{self} received packet: {packet.summary()}')
+        logger.debug(f'{self} received packet: {packet.scapy.summary()}')
         pair = TCP.TcpPair(packet)
         revpair = TCP.TcpPairReversed(packet)
 

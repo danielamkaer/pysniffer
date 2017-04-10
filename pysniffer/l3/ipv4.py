@@ -14,8 +14,8 @@ class IPv4:
         self.app = app
 
     def boot(self):
-        self.app[pysniffer.l2.Ethernet].onFrameReceived += self.OnFrameReceived, lambda pkt: pkt.type == ETHER_TYPES.IPv4
+        self.app[pysniffer.l2.Ethernet].onFrameReceived += self.OnFrameReceived, lambda pkt: pkt.is_ipv4
 
     async def OnFrameReceived(self, packet):
-        logger.debug(f'{self} received packet: {packet.summary()}')
+        logger.debug(f'{self} received packet: {packet.scapy.summary()}')
         await self.onFrameReceived(packet)

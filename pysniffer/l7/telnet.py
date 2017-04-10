@@ -36,20 +36,20 @@ class Session:
             return False
 
     async def processClientMessage(self, conn, packet):
-        if self.parseTelnetMessage(packet['Raw'].load):
+        if self.parseTelnetMessage(packet.scapy['Raw'].load):
             conn.onClientSent -= self.processClientMessage
             conn.onServerSent += self.processServerMessage
-            logger.info(f'Client init telnet packet {packet.summary()}')
+            logger.info(f'Client init telnet packet {packet.scapy.summary()}')
             self.telnet.deleteMe(self)
         else:
-            logger.debug(f'Not a telnet connection {packet.summary()}')
+            logger.debug(f'Not a telnet connection {packet.scapy.summary()}')
             conn.onClientSent -= self.processClientMessage
             self.telnet.deleteMe(self)
 
     async def processServerMessage(self, conn, packet):
-        if self.parseTelnetMessage(packet['Raw'].load):
+        if self.parseTelnetMessage(packet.scapy['Raw'].load):
             conn.onServerSent -= self.processServerMessage
-            logger.info(f'Server telnet response packet {packet.summary()}')
+            logger.info(f'Server telnet response packet {packet.scapy.summary()}')
         else:
             logger.debug(f'Not a telnet connection')
             conn.onServerSent -= self.processServerMessage

@@ -27,10 +27,10 @@ class Connection:
 
     @staticmethod
     def FromPacket(packet):
-        if not 'UDP' in packet:
+        if not 'UDP' in packet.scapy:
             return None
         
-        return Connection(*UDP.UdpPair(packet), packet.time)
+        return Connection(*UDP.UdpPair(packet), packet.scapy.time)
 
     def isExpired(self, time):
         if time > self.time + Connection.TIMEOUT:
@@ -46,12 +46,7 @@ class UDP:
 
     @staticmethod
     def UdpPair(packet):
-        if 'IP' in packet:
-            return (packet['IP'].src, packet['IP'].dst, packet['UDP'].sport, packet['UDP'].dport)        
-        elif 'IPv6' in packet:
-            return (packet['IPv6'].src, packet['IPv6'].dst, packet['UDP'].sport, packet['UDP'].dport)        
-        
-        return (None,None,None,None)
+        return (packet.ip_src, packet.ip_dst, packet.port_src, packet.port_dst)        
 
     @staticmethod
     def ReversePair(pair):
@@ -74,7 +69,7 @@ class UDP:
         logger.debug(f'{self} received packet: {packet.summary()}')
 
         for pair in self.conntrack.copy():
-            if self.conntrack[pair].isExpired(packet.time):
+            if self.conntrack[pair].isExpired(packet.scapy.time):
                 logger.info(f'Timeout between: {pair[0]}:{pair[2]} --> {pair[1]}:{pair[3]}')
                 del self.conntrack[pair]
 
@@ -88,7 +83,7 @@ class UDP:
                 pair = revpair
                 rev = True
             conn = self.conntrack[pair]
-            conn.time = packet.time
+            conn.time = packet.scapy.time
             if rev:
                 await conn.onServerSent(conn, packet)
             else:
@@ -105,18 +100,13 @@ class UDP:
     async def OnIcmpReceived(self,packet):
         if 'UDPerror' in packet:
             udpError = packet[UDP.UDPerror]
-            src = str()
-            if 'IP' in packet:
-                src = packet['IP'].src
-                pair = (packet['IP'].src, packet['IP'].dst, udpError.dport, udpError.sport)
-            elif 'IPv6' in packet:
-                src = packet['IPv6'].src
-                pair = (packet['IPv6'].src, packet['IPv6'].dst, udpError.dport, udpError.sport)
+            src = packet.ip_src
+            pair = (packet.ip_src, packet.ip_dst, udpError.dport, udpError.sport)
 
             revpair = (pair[1], pair[0], pair[3], pair[2])
             logger.debug(f'icmp pair: {pair}')
             if pair in self.conntrack or revpair in self.conntrack:
-                logger.debug(f'ICMP matches UDP packet: {packet.summary()}')
+                logger.debug(f'ICMP matches UDP packet: {packet.scapy.summary()}')
                 if pair not in self.conntrack:
                     pair = revpair
                 logger.info(f'Port {udpError.dport} unreachable at host {src}, connection deleted')
