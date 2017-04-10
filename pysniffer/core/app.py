@@ -1,15 +1,11 @@
 import argparse
 import logging
 from pysniffer.core.sniff import Sniffer
-import pysniffer.l2
-import pysniffer.l3
-import pysniffer.l4
-import pysniffer.l7
+import pysniffer.core
 import inspect
 import asyncio
 import signal
 
-from pysniffer.core.modules import REGISTER
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +28,7 @@ class Container:
 
 class Application(Container):
     def __init__(self, argv):
+        from pysniffer.core.modules import REGISTER
         super().__init__()
         self.argv = argv
         self.handleArguments()
@@ -78,6 +75,7 @@ class Application(Container):
 
 
     def run(self):
+        from pysniffer.core.modules import REGISTER
 
 
         sniffer = self[Sniffer]
