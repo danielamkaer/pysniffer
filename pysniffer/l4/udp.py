@@ -6,6 +6,19 @@ from scapy.layers.inet import IP_PROTOS
 
 logger = logging.getLogger(__name__)
 
+class OpenPortReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'The host listening on a UDP port',
+        'port': 'The port that is being listened on'
+    }
+
+class ConnectsToReport(pysniffer.core.Report):
+    FIELDS = {
+        'host': 'The host listening on a UDP port',
+        'dst' : 'The destination which is sent to',
+        'port': 'The port that is being listened on'
+    }
+
 class Connection:
     STATE_STARTED = 'STATE_STARTED'
     STATUS_ESTABLISHED = 'STATUS_ESTABLISHED'
@@ -96,10 +109,13 @@ class UDP:
                 logger.info(f'New connection established: {packet.scapy.summary()}')
                 await self.onConnectionEstablished(self.conntrack[pair])
                 await conn.onClientSent(conn, packet)
+                await self.app.report(self, OpenPortReport(host=pair[1], port=pair[3]))
+                await self.app.report(self, ConnectsToReport(host=pair[0], dst=pair[1], port=pair[3]))
+
 
     async def OnIcmpReceived(self,packet):
-        if 'UDPerror' in packet:
-            udpError = packet[UDP.UDPerror]
+        if 'UDPerror' in packet.scapy:
+            udpError = packet.scapy[UDP.UDPerror]
             src = packet.ip_src
             pair = (packet.ip_src, packet.ip_dst, udpError.dport, udpError.sport)
 
