@@ -79,7 +79,7 @@ class Dns:
                     elif payload.an[i].type == inv_dnsqtypes['AAAA']:
                         response.append(payload.an[i].rdata)
                         logger.debug(f'{payload.an[i].rrname} {payload.an[i].type} {payload.an[i].rdata}')
-                #await self.generateReports(packet, id)
+                await self.generateReports(packet, id)
                 logger.info(f'Found DNS response {[i for i in response]} to {self.queries[id].query}')
                 del self.queries[id]
     
