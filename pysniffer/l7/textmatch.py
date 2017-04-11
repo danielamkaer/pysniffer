@@ -118,6 +118,6 @@ class Ssh(TextMatch):
         return self.REGEX    
 
     async def generateReports(self, packet):
-        await self.app.report(self, SshClientReport(host=packet["IP"].dst, dest=packet["IP"].src, port=packet['TCP'].sport, software=None))
-        await self.app.report(self, SshServerReport(host=packet["IP"].src, port=packet['TCP'].sport, software=None))
+        await self.app.report(self, SshClientReport(host=packet.ip_dst, dest=packet.ip_src, port=packet.port_src, software=None))
+        await self.app.report(self, SshServerReport(host=packet.ip_src, port=packet.port_src, software=None))
         
