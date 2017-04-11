@@ -67,5 +67,9 @@ class Dns:
                     if payload.an[i].type == inv_dnsqtypes['A']:
                         response.append(payload.an[i].rdata)
                         logger.debug(f'{payload.an[i].rrname} {payload.an[i].type} {payload.an[i].rdata}')
+                    elif payload.an[i].type == inv_dnsqtypes['AAAA']:
+                        response.append(payload.an[i].rdata)
+                        logger.debug(f'{payload.an[i].rrname} {payload.an[i].type} {payload.an[i].rdata}')
                 logger.info(f'Found DNS response {[i for i in response]} to {self.queries[id].query}')
                 del self.queries[id]
+    
