@@ -5,11 +5,19 @@ import re
 from scapy.layers.dns import dnsqtypes
 inv_dnsqtypes = dict(zip(dnsqtypes.values(), dnsqtypes.keys()))
 
+class DnsQueryReport(pysniffer.core.Report):
+    FIELDS = {
+        'host' : 'The host which made the lookup',
+        'query': 'The query which it looked up',
+        'response': 'A list with the response'
+    }
+
 class Query:
     def __init__(self, id, time):
         self.id = id
         self.time = time
         self.query = str()
+        self.response = []
 
 """
 Refering to RFC 1035 https://tools.ietf.org/html/rfc1035
@@ -62,6 +70,7 @@ class Dns:
 
             elif payload.rcode == 0 and not payload.an == None:
                 response = list()
+                response = self.queries[id].response
 
                 for i in range(payload.ancount):
                     if payload.an[i].type == inv_dnsqtypes['A']:
@@ -70,6 +79,16 @@ class Dns:
                     elif payload.an[i].type == inv_dnsqtypes['AAAA']:
                         response.append(payload.an[i].rdata)
                         logger.debug(f'{payload.an[i].rrname} {payload.an[i].type} {payload.an[i].rdata}')
+                #await self.generateReports(packet, id)
                 logger.info(f'Found DNS response {[i for i in response]} to {self.queries[id].query}')
                 del self.queries[id]
     
+    async def generateReports(self, packet, id):
+        await self.app.report(
+            self,
+            DnsQueryReport(
+                host = packet.ip_src,
+                query = self.queries[id].query,
+                response=self.queries[id].response
+            )
+        )
