@@ -7,6 +7,21 @@ logger = logging.getLogger(__name__)
 CLIENT_HELLO = 'CLIENT_HELLO'
 SERVER_HELLO = 'SERVER_HELLO'
 
+class SslClientReport(pysniffer.core.Report):
+    FIELDS = {
+        'host' : 'The host which made the lookup',
+        'port' : 'Server port',
+        'dest' : 'Server IP address',
+        'software' : 'Client user agent, id  detected'
+    }
+
+class SslServerReport(pysniffer.core.Report):
+    FIELDS = {
+        'host' : 'Server IP address',
+        'port' : 'Server port',
+        'software' : 'Server Software version, id  detected'
+    }
+
 class Ssl:
     def register(self, app):
         self.app = app
@@ -23,6 +38,11 @@ class Ssl:
 
     def deleteMe(self, session):
         del self.sessions[session.conn]
+    
+    async def generateReport(self, packet):
+        logger.debug(f'report made for {packet.scapy.summary()}')
+        await self.app.report(self, SslClientReport(host = packet.ip_dst, dest = packet.ip_src, port = packet.port_dst, software = None))
+        await self.app.report(self, SslServerReport(host = packet.ip_src, port = packet.port_dst, software = None))
     
 class Session:
     def __init__(self, conn, ssl):
@@ -58,6 +78,7 @@ class Session:
             conn.onServerSent -= self.processServerMessage
         elif self.state == CLIENT_HELLO and self.parseSslMessage(packet.scapy['Raw'].load):
             logger.info(f'Found matching Server hello in ssl connection {packet.scapy.summary()}')
+            await self.ssl.generateReport(packet)
             conn.onServerSent -= self.processServerMessage
             self.state == SERVER_HELLO
             self.ssl.deleteMe(self)
