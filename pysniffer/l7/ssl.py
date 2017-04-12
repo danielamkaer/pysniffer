@@ -40,7 +40,6 @@ class Ssl:
         del self.sessions[session.conn]
     
     async def generateReport(self, packet):
-        logger.debug(f'report made for {packet.scapy.summary()}')
         await self.app.report(self, SslClientReport(host = packet.ip_dst, dest = packet.ip_src, port = packet.port_dst, software = None))
         await self.app.report(self, SslServerReport(host = packet.ip_src, port = packet.port_dst, software = None))
     
