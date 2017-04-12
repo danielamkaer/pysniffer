@@ -6,6 +6,21 @@ logger = logging.getLogger(__name__)
 TELNET_COMMAND_SIGNAL = 255 # 0xff - byte that tells the next byte is a command
 TELNET_COMMAND = 240 #  0xf0 - 0xf0 to 0xff is a command, if it comes af 0xff 
 
+class TelnetClientReport(pysniffer.core.Report):
+    FIELD = {
+        'host' : 'Client IP address',
+        'port' : 'Server Port',
+        'dest' : 'Server IP address',
+        'software' : 'Client user agent, id detected'
+    }
+
+class TelnetServerReport(pysniffer.core.Report):
+    FIELD = {
+        'host' : 'Server IP Address',
+        'port' : 'Server port',
+        'software' : 'Server software version, id detected'
+    }
+
 class Telnet:
     def register(self, app):
         self.app = app
@@ -22,6 +37,25 @@ class Telnet:
 
     def deleteMe(self, session):
         del self.sessions[session.conn]
+
+    async def generateReports(self, packet):
+        self.app.report(
+            self,
+            TelnetClientReport(
+                host = packet.ip_dst,
+                dest = packet.ip_src,
+                port = packet.port_src,
+                software = None
+            )
+        )
+        self.app.report(
+            self,
+            TelnetServerReport(
+                host = packet.ip_src,
+                port = packet.port_src,
+                software = None
+            )
+        )
 
 class Session:
     def __init__(self, conn, telnet):
