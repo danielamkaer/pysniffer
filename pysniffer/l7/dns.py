@@ -87,7 +87,7 @@ class Dns:
         await self.app.report(
             self,
             DnsQueryReport(
-                host = packet.ip_src,
+                host = packet.ip_dst,
                 query = self.queries[id].query,
                 response=self.queries[id].response
             )
