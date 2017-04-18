@@ -41,6 +41,8 @@ class Connection:
 
         self.onClientSent = pysniffer.core.Event()
         self.onServerSent = pysniffer.core.Event()
+        
+        self.userdata = {}
 
     def pair(self):
         return (self.src, self.dst, self.sport, self.dport)
