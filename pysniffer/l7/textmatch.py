@@ -55,6 +55,7 @@ class TextMatch:
         self.app[pysniffer.l4.TCP].onConnectionEstablished += self.onConnectionEstablished
 
     async def onConnectionEstablished(self, conn):
+        conn.userdata[self.__class__] = {}
         if self.doesClientSendFirstMessage():
             conn.onClientSent += self.onFirstMessage
         else:
@@ -68,7 +69,9 @@ class TextMatch:
 
         payload = packet.scapy['Raw'].load
 
-        if self.getFirstPattern().match(payload):
+        m = self.getFirstPattern().match(payload)
+        if m:
+            conn.userdata[self.__class__]['first'] = m
             if self.getSecondPattern() == None:
                 logger.info(f"Found {self.__class__.__name__} service")
             else:
@@ -86,13 +89,16 @@ class TextMatch:
 
         payload = bytes(packet.scapy['Raw'].load)
 
-        if self.getSecondPattern().match(payload):
+        m = self.getSecondPattern().match(payload)
+        if m:
+            conn.userdata[self.__class__]['second'] = m
             logger.info(f"Found {self.__class__.__name__} service")
-            await self.generateReports(packet)
+            await self.generateReports(packet, conn.userdata[self.__class__])
 
 class Http(TextMatch):
-    REGEX_cli = re.compile(b'^(GET|POST|DELETE|PUT|PATCH|HEAD) (.+) HTTP/(\d\.\d)')
-    REGEX_srv = re.compile(b'^HTTP\/(\d\.\d) (\d{3}) (.+?)')
+    #(?=.*(?:Server: (?P<server>[^\n]+)))?(?=.*(?:X-Powered-By: (?P<x_powered_by>[^\n]+)))?^HTTP\/(?P<version>\d\.\d) (?P<result>\d{3}) (?P<status>[^\r\n]+)
+    REGEX_cli = re.compile(b'^(?P<method>GET|POST|DELETE|PUT|PATCH|HEAD) (?P<path>.+) HTTP/(?P<version>\d\.\d)(?:.*User-Agent: (?P<user_agent>[^\n\r]+))?', re.DOTALL)
+    REGEX_srv = re.compile(b'^HTTP\/(?P<version>\d\.\d) (?P<result>\d{3}) (?P<status>[^\r\n]+)(?:.*Server: (?P<server>[^\r\n]+))?', re.DOTALL)
     def doesClientSendFirstMessage(self):
         return True
 
@@ -102,12 +108,12 @@ class Http(TextMatch):
     def getSecondPattern(self):
         return self.REGEX_srv    
 
-    async def generateReports(self, packet):
-        await self.app.report(self, HttpClientReport(host=packet.ip_dst, dest=packet.ip_src, port=packet.port_src, software=None))
-        await self.app.report(self, HttpServerReport(host=packet.ip_src, port=packet.port_src, software=None))
+    async def generateReports(self, packet, userdata):
+        await self.app.report(self, HttpClientReport(host=packet.ip_dst, dest=packet.ip_src, port=packet.port_src, software=str(userdata['first'].group('user_agent'))))
+        await self.app.report(self, HttpServerReport(host=packet.ip_src, port=packet.port_src, software=str(userdata['second'].group('server'))))
         
 class Ssh(TextMatch):
-    REGEX = re.compile(b'^SSH-(.+?)\r?$')
+    REGEX = re.compile(b'^SSH-(?P<software>.+?)\r?$')
     def doesClientSendFirstMessage(self):
         return True
 
@@ -117,7 +123,7 @@ class Ssh(TextMatch):
     def getSecondPattern(self):
         return self.REGEX    
 
-    async def generateReports(self, packet):
-        await self.app.report(self, SshClientReport(host=packet.ip_dst, dest=packet.ip_src, port=packet.port_src, software=None))
-        await self.app.report(self, SshServerReport(host=packet.ip_src, port=packet.port_src, software=None))
+    async def generateReports(self, packet, userdata):
+        await self.app.report(self, SshClientReport(host=packet.ip_dst, dest=packet.ip_src, port=packet.port_src, software=str(userdata['first'].group('software'))))
+        await self.app.report(self, SshServerReport(host=packet.ip_src, port=packet.port_src, software=str(userdata['second'].group('software'))))
         
