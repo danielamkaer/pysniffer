@@ -13,5 +13,7 @@ REGISTER = [
     pysniffer.l7.Telnet,
     pysniffer.l7.Ssh,
     pysniffer.l7.Dns,
-    pysniffer.l7.Ssl
+    pysniffer.l7.Ssl,
+    pysniffer.l7.Dhcp
+
 ]
