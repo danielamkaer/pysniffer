@@ -2,7 +2,7 @@ import pysniffer.l4
 import logging
 from scapy.layers import dhcp, dhcp6
 from scapy.layers.dhcp import DHCPTypes
-from enum import Enum
+import enum
 
 logger = logging.getLogger(__name__)
 inv_dhcptypes = dict(zip(DHCPTypes.values(), DHCPTypes.keys()))
@@ -10,15 +10,16 @@ inv_dhcptypes = dict(zip(DHCPTypes.values(), DHCPTypes.keys()))
 class DhcpReport(pysniffer.core.Report):
     FIELDS = {
         'options' : 'The options which is shared',
-        'ip' : 'The hosts IP address',
-        'mac' : 'The hosts MAC address'
+        'host' : 'The hosts IP address',
+        'mac' : 'The hosts MAC address',
+        'hostname' : 'Devices hostname'
     }
 
-class DhcpState(Enum):
-    discover = 1
-    offer = 2
-    request = 3
-    ack = 4
+class DhcpState(enum.Enum):
+    discover = enum.auto()
+    offer = enum.auto()
+    request = enum.auto()
+    ack = enum.auto()
 
 
 class Client:
@@ -28,6 +29,7 @@ class Client:
         self.state = DhcpState.discover
         self.ip = str()
         self.id = id
+        self.hostname = None
 
 class Dhcp:
     PORT = 67
@@ -52,35 +54,29 @@ class Dhcp:
         if 'DHCP' in packet.scapy:
             options = self.getOptions(packet)
             xid = packet.scapy['BOOTP'].xid
-            if inv_dhcptypes['discover'] in options['message-type']:
-                self.clients[xid] = Client(packet.mac_src, xid)
-                self.clients[xid].options['discover'] = options
-                self.clients[xid].mac = packet.mac_src
-                logger.debug(f'Found DHCP Discover {packet.scapy.summary()}')
-
-            elif inv_dhcptypes['offer'] in options['message-type']:
-                if xid in self.clients:
-                    self.clients[xid].state = DhcpState.offer
-                    self.clients[xid].options['offer'] = options
-                    logger.debug(f'Found offer packet: {packet.scapy.summary()}')
-
-            elif inv_dhcptypes['request'] in options['message-type']:
-                if xid in self.clients:
-                    self.clients[xid].state = DhcpState.request
-                    self.clients[xid].options['request'] = options
-                    logger.debug(f'Found request packet: {packet.scapy.summary()}')
+            if inv_dhcptypes['request'] in options['message-type']:
+                if not xid in self.clients:
+                    self.clients[xid] = Client(packet.mac_src, xid)
+                self.clients[xid].state = DhcpState.request
+                self.clients[xid].options['request'] = options
+                logger.debug(f'Found request packet: {packet.scapy.summary()}')
 
             elif inv_dhcptypes['ack'] in options['message-type']:
+                if not xid in self.clients:
+                    logger.info(f'DHCP ack received without matching id {packet.scapy.summary()}')
                 if xid in self.clients:
                     self.clients[xid].state = DhcpState.ack
                     self.clients[xid].options['ack'] = options
                     self.clients[xid].ip = packet.scapy['BOOTP'].yiaddr
-                    logger.info(f'Found ack packet: {packet.scapy.summary()}')
+                    if 'hostname' in self.clients[xid].options['request']:
+                        self.clients[xid].hostname = "".join(map(chr, self.clients[xid].options['request']['hostname'][0]))
+                        logger.info(f'Ack for device {self.clients[xid].hostname} {packet.scapy.summary()}')
+
+                    else:
+                        logger.info(f'Found ack packet: {packet.scapy.summary()}')
+
                     await self.generateReports(self.clients[xid])
                     del self.clients[xid]
-
-        else:
-            pass
 
     async def OnClientSent(self, conn, packet):
         await self.handleFrame(conn, packet)    
@@ -93,7 +89,8 @@ class Dhcp:
             self,
             DhcpReport(
                 options = client.options,
-                ip = client.ip,
-                mac = client.mac
+                host = client.ip,
+                mac = client.mac,
+                hostname = client.hostname
             )
         )
