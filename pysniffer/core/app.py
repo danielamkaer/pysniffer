@@ -112,3 +112,6 @@ class Application(Container):
         logger.info('Starting sniffer.')
         loop.run_until_complete(sniffer.start())
         logger.info('Sniffer stopped.')
+
+    def stop(self):
+        self[Sniffer].stop()
