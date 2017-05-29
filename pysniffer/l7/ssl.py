@@ -40,8 +40,8 @@ class Ssl:
         del self.sessions[session.conn]
     
     async def generateReport(self, packet):
-        await self.app.report(self, SslClientReport(host = packet.ip_dst, dest = packet.ip_src, port = packet.port_dst, software = None))
-        await self.app.report(self, SslServerReport(host = packet.ip_src, port = packet.port_dst, software = None))
+        await self.app.report(self, SslClientReport(host = packet.ip_dst, dest = packet.ip_src, port = packet.port_src, software = None))
+        await self.app.report(self, SslServerReport(host = packet.ip_src, port = packet.port_src, software = None))
     
 class Session:
     def __init__(self, conn, ssl):
